@@ -146,7 +146,19 @@ export function DetectionDashboard() {
 
         {/* Upload Section */}
         <section className="mx-auto w-full max-w-7xl flex-1 px-6 py-8 lg:px-10">
-          <DetectionSection config={selectedDetection} />
+          {detections.map((detection) => {
+            const isActive = selectedDetection.key === detection.key;
+
+            return (
+              <div
+                key={detection.key}
+                className={isActive ? "block" : "hidden"}
+                aria-hidden={!isActive}
+              >
+                <DetectionSection config={detection} />
+              </div>
+            );
+          })}
 
           {/* Patient History Section */}
           {/* <div className="panel-shadow overflow-hidden rounded-[1.75rem] border border-outline-variant/20 bg-surface-container-lowest">
