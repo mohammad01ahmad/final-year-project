@@ -19,6 +19,7 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [response, setResponse] = useState<DetectionResponse | null>(null);
+  const [referencesExpanded, setReferencesExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
 
 
@@ -46,6 +47,7 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
     if (nextFile) {
       setSelectedFile(nextFile);
       setResponse(null);
+      setReferencesExpanded(false);
       setError(null);
       analyzeImage(nextFile);
     }
@@ -94,7 +96,11 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
     setPreviewUrl(null);
     setError(null);
     setResponse(null);
+    setReferencesExpanded(false);
   }
+
+  const supportsClinicalExplanation =
+    config.key === "tuberculosis" || config.key === "brain-tumor";
 
   return (
     <>
@@ -205,10 +211,90 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
                     </div>
                   ))}
                 </div>
-                <p className="mt-4 text-lg italic text-black">The AI model has highlighted the most salient regions in the generated heatmap overlay. Clinical correlation with the patient's reported symptoms is highly recommended.</p>
+                {supportsClinicalExplanation && response.ragSummary?.location ? (
+                  <p className="mt-4 text-lg font-semibold text-on-surface">
+                    Grad-CAM location: <span className="font-bold underline">{response.ragSummary.location}</span>
+                  </p>
+                ) : null}
+                <p className="mt-4 text-md italic text-black">The AI model has highlighted the most salient regions in the generated heatmap overlay. Clinical correlation with the patient's reported symptoms is highly recommended.</p>
               </div>
             </div>
           </div>
+
+          {supportsClinicalExplanation ? (
+            <div className="mb-10 grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="rounded-xl bg-surface-container-low p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <h4 className="font-bold uppercase tracking-widest text-on-surface-variant">
+                    Clinical Explanation
+                  </h4>
+                  {response.ragSummary ? (
+                    <div className="text-right text-xs text-on-surface-variant">
+                      <p>Retrieved references: {response.ragSummary.retrievedCount}</p>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="rounded-lg bg-white/80 p-5 text-sm leading-7 text-on-surface">
+                  {response.explanation ? (
+                    <div className="space-y-4">
+                      <p>{response.explanation}</p>
+                      {response.ragReferences ? (
+                        <div className="rounded-lg border border-slate-200 bg-slate-50">
+                          <button
+                            type="button"
+                            onClick={() => setReferencesExpanded((current) => !current)}
+                            className="flex w-full items-center justify-between px-4 py-3 text-left"
+                          >
+                            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+                              References
+                            </span>
+                            <span className="text-sm text-on-surface-variant">
+                              {referencesExpanded ? "▲" : "▼"}
+                            </span>
+                          </button>
+                          {referencesExpanded ? (
+                            <div className="border-t border-slate-200 px-4 pb-4 pt-3">
+                              <pre className="whitespace-pre-wrap font-body text-sm leading-6 text-on-surface">
+                                {response.ragReferences}
+                              </pre>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="italic text-on-surface-variant">
+                      No clinical explanation is available for this result right now. The CNN prediction and Grad-CAM output are still valid.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {supportsClinicalExplanation ? (
+                <div className="rounded-xl bg-surface-container-low p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+                  <div className="mb-4 flex items-center justify-between gap-4">
+                    <h4 className="font-bold uppercase tracking-widest text-on-surface-variant">
+                      LLM API Experiment
+                    </h4>
+                    {response.llmApiSummary ? (
+                      <div className="text-right text-xs text-on-surface-variant">
+                        <p>Selected reports: {response.llmApiSummary.selectedCount}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="rounded-lg bg-white/80 p-5 text-sm leading-7 text-on-surface">
+                    {response.llmApiExplanation ? (
+                      <p>{response.llmApiExplanation}</p>
+                    ) : (
+                      <p className="italic text-on-surface-variant">
+                        No LLM API experiment output is available for this result right now.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </>
       ) : (
         <>

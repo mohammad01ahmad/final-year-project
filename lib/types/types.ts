@@ -69,8 +69,19 @@ export type DetectionResponse = {
     probabilities: Probability[];
     gradcamImage: string;
     model: string;
-    inputSize: {
+    inputSize?: {
         width: number;
         height: number;
     };
+    explanation?: string | null;
+    ragSummary?: {
+        location: string;
+        retrievedCount: number;
+    } | null;
+    ragReferences?: string | null;
+    llmApiExplanation?: string | null;
+    llmApiSummary?: {
+        location: string;
+        selectedCount: number;
+    } | null;
 };
