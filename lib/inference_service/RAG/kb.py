@@ -10,17 +10,26 @@ from typing import Any
 RAG_DIR = Path(__file__).resolve().parent
 CHROMA_PATH = RAG_DIR / "chroma_db"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+ALL_DISEASES_CSV_PATH = RAG_DIR / "all_diseases.csv"
 
 KB_CONFIG = {
     "tuberculosis": {
-        "csv_path": RAG_DIR / "tb_normal.csv",
-        "collection_name": "tuberculosis_reports_tb_normal_v2",
+        "csv_path": ALL_DISEASES_CSV_PATH,
+        "collection_name": "tuberculosis_reports_all_diseases_v1",
         "label_prefix": "tb-report",
+        "disease_type": "Tuberculosis",
     },
     "brain-tumor": {
-        "csv_path": RAG_DIR / "brain_tumor.csv",
-        "collection_name": "brain_tumor_reports_v1",
+        "csv_path": ALL_DISEASES_CSV_PATH,
+        "collection_name": "brain_tumor_reports_all_diseases_v1",
         "label_prefix": "brain-report",
+        "disease_type": "Brain_tumor",
+    },
+    "chest-diseases": {
+        "csv_path": ALL_DISEASES_CSV_PATH,
+        "collection_name": "chest_diseases_reports_all_diseases_v1",
+        "label_prefix": "chest-report",
+        "disease_type": "Chest_diseases",
     },
 }
 
@@ -43,6 +52,7 @@ def _load_rows(disease_key: str) -> list[dict[str, str]]:
         raise FileNotFoundError(f"Knowledge base CSV not found: {csv_path}")
 
     rows: list[dict[str, str]] = []
+    expected_disease_type = str(config["disease_type"]).casefold()
     with csv_path.open("r", encoding="utf-8", newline="") as csv_file:
         reader = csv.DictReader(csv_file)
         for index, row in enumerate(reader):
@@ -52,6 +62,9 @@ def _load_rows(disease_key: str) -> list[dict[str, str]]:
             class_label = _normalize_field(row.get("class_label"))
             location = _normalize_field(row.get("location"))
             report_id = _normalize_field(row.get("id")) or f"{config['label_prefix']}-{index:05d}"
+
+            if disease_type.casefold() != expected_disease_type:
+                continue
 
             if not any([findings, impression, disease_type, class_label, location]):
                 continue
@@ -162,3 +175,7 @@ def ensure_tb_vector_store() -> int:
 
 def ensure_brain_tumor_vector_store() -> int:
     return ensure_vector_store("brain-tumor")
+
+
+def ensure_chest_diseases_vector_store() -> int:
+    return ensure_vector_store("chest-diseases")

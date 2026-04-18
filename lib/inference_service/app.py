@@ -22,12 +22,16 @@ from fastapi.responses import JSONResponse
 # RAG imports
 from RAG import (
     ensure_brain_tumor_vector_store,
+    ensure_chest_diseases_vector_store,
     ensure_tb_vector_store,
     extract_brain_tumor_location_from_heatmap,
+    extract_chest_location_from_heatmap,
     extract_tb_location_from_heatmap,
     generate_brain_tumor_explanation,
+    generate_chest_diseases_explanation,
     generate_tb_explanation,
     retrieve_brain_tumor_context,
+    retrieve_chest_diseases_context,
     retrieve_tb_context,
 )
 
@@ -102,6 +106,19 @@ def get_model(key: str) -> LoadedModel:
         _LOADED_MODELS[key] = LoadedModel(model=model, config=config)
     return _LOADED_MODELS[key]
 
+
+def normalize_kb_class_label(model_key: str, prediction_label: str) -> str:
+    if model_key == "tuberculosis":
+        return prediction_label.lower()
+    if model_key == "chest-diseases":
+        mapping = {
+            "COVID-19": "covid-19",
+            "Normal": "normal",
+            "Non-COVID": "non_covid",
+        }
+        return mapping.get(prediction_label, prediction_label.lower())
+    return prediction_label
+
 # --- API ROUTES ---
 
 app = FastAPI(title="Aether Medical Advanced Inference")
@@ -150,6 +167,7 @@ async def run_inference_logic(key: str, file: UploadFile):
         # 4. Prediction Label & Confidence
         # --------------------------------
         prediction_label = loaded.config.labels[class_idx]
+        kb_prediction_label = normalize_kb_class_label(loaded.config.key, prediction_label)
         confidence_percent = max(probability_scores) * 100.0
         explanation = None
         rag_summary = None
@@ -168,7 +186,7 @@ async def run_inference_logic(key: str, file: UploadFile):
                 ensure_tb_vector_store()
                 context, matches = retrieve_tb_context(
                     disease_type=disease_type,
-                    prediction=prediction_label,
+                    prediction=kb_prediction_label,
                     confidence_percent=confidence_percent,
                     location=location,
                 )
@@ -193,7 +211,7 @@ async def run_inference_logic(key: str, file: UploadFile):
                 simple_reports = select_reference_reports(
                     disease_key="tuberculosis",
                     disease_type=disease_type,
-                    prediction=prediction_label,
+                    prediction=kb_prediction_label,
                     location=location,
                 )
                 simple_context = build_reference_context(simple_reports)
@@ -220,7 +238,7 @@ async def run_inference_logic(key: str, file: UploadFile):
                 ensure_brain_tumor_vector_store()
                 context, matches = retrieve_brain_tumor_context(
                     disease_type=disease_type,
-                    prediction=prediction_label,
+                    prediction=kb_prediction_label,
                     confidence_percent=confidence_percent,
                     location=location,
                 )
@@ -245,7 +263,7 @@ async def run_inference_logic(key: str, file: UploadFile):
                 simple_reports = select_reference_reports(
                     disease_key="brain-tumor",
                     disease_type=disease_type,
-                    prediction=prediction_label,
+                    prediction=kb_prediction_label,
                     location=location,
                 )
                 simple_context = build_reference_context(simple_reports)
@@ -263,6 +281,58 @@ async def run_inference_logic(key: str, file: UploadFile):
                 }
             except Exception as llm_error:
                 print(f"Brain tumor LLM API warning: {llm_error}")
+
+        if loaded.config.key == "chest-diseases":
+            disease_type = "Chest_diseases"
+            location = extract_chest_location_from_heatmap(heatmap)
+            retrieved_count = 0
+            try:
+                ensure_chest_diseases_vector_store()
+                context, matches = retrieve_chest_diseases_context(
+                    disease_type=disease_type,
+                    prediction=kb_prediction_label,
+                    confidence_percent=confidence_percent,
+                    location=location,
+                )
+                retrieved_count = len(matches)
+                rag_references = context.strip() or None
+                if context.strip():
+                    explanation = generate_chest_diseases_explanation(
+                        prediction=prediction_label,
+                        confidence_percent=confidence_percent,
+                        location=location,
+                        context=context,
+                    )
+            except Exception as rag_error:
+                print(f"Chest diseases RAG warning: {rag_error}")
+
+            rag_summary = {
+                "location": location,
+                "retrievedCount": retrieved_count,
+            }
+
+            try:
+                simple_reports = select_reference_reports(
+                    disease_key="chest-diseases",
+                    disease_type=disease_type,
+                    prediction=kb_prediction_label,
+                    location=location,
+                )
+                simple_context = build_reference_context(simple_reports)
+                if simple_context.strip():
+                    llm_api_explanation = generate_llm_api_explanation(
+                        disease_key="chest-diseases",
+                        prediction=prediction_label,
+                        confidence_percent=confidence_percent,
+                        location=location,
+                        context=simple_context,
+                    )
+                llm_api_summary = {
+                    "location": location,
+                    "selectedCount": len(simple_reports),
+                }
+            except Exception as llm_error:
+                print(f"Chest diseases LLM API warning: {llm_error}")
         
         # 4. Encode to Base64
         _, buffer = cv2.imencode(".png", cv2.cvtColor(gradcam_img, cv2.COLOR_RGB2BGR))

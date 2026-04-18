@@ -64,10 +64,10 @@ export function DetectionDashboard() {
       <aside className="fixed left-0 top-0 hidden h-screen w-72 overflow-y-auto border-r border-slate-200/70 bg-slate-50/90 p-4 backdrop-blur md:flex md:flex-col">
         <div className="mb-8 px-3">
           <h2 className="font-headline text-lg font-extrabold text-sky-900">
-            Aether Medical
+            Final Year Project
           </h2>
           <p className="mt-1 text-[11px] uppercase tracking-[0.24em] text-slate-500">
-            Clinical Imaging
+            Disease detection and Explanation
           </p>
         </div>
 
@@ -127,16 +127,6 @@ export function DetectionDashboard() {
               </nav>
             </div>
             <div className="flex items-center gap-4">
-              <div className="relative hidden sm:block">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-                  Search
-                </span>
-                <input
-                  className="w-48 rounded-full border border-transparent bg-slate-100 py-2 pl-18 pr-4 text-xs outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-500/20 lg:w-64"
-                  placeholder="Search patient ID..."
-                  type="text"
-                />
-              </div>
               <button className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-sky-900 hover:bg-slate-200">
                 AC
               </button>
@@ -159,66 +149,27 @@ export function DetectionDashboard() {
               </div>
             );
           })}
-
-          {/* Patient History Section */}
-          {/* <div className="panel-shadow overflow-hidden rounded-[1.75rem] border border-outline-variant/20 bg-surface-container-lowest">
-            <div className="flex items-center justify-between border-b border-surface-container px-8 py-6">
-              <h2 className="font-headline text-xl font-bold">Recent Uploads</h2>
-              <button className="text-sm font-semibold text-primary hover:underline">
-                View All History
-              </button>
-            </div>
-            <div className="divide-y divide-surface-container">
-              {recentUploads.map((upload) => (
-                <div
-                  key={upload.patient}
-                  className="flex items-center justify-between gap-4 px-8 py-5 hover:bg-surface-bright"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container-high text-xs font-bold text-slate-500">
-                      IMG
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold">{upload.patient}</p>
-                      <p className="text-xs text-on-surface-variant">{upload.study}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-bold ${upload.tone}`}
-                    >
-                      {upload.status}
-                    </span>
-                    <span className="hidden text-xs text-on-surface-variant md:block">
-                      {upload.time}
-                    </span>
-                    <button className="text-outline hover:text-primary">•••</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div> */}
         </section>
 
         <footer className="mt-auto w-full border-t border-slate-200/50 bg-slate-50 py-8">
           <div className="flex flex-col items-center justify-between gap-4 px-12 md:flex-row">
             <div className="flex flex-col items-center md:items-start">
               <span className="font-headline font-bold text-slate-900">
-                Aether Medical Imaging
+                Medical Imaging
               </span>
               <span className="mt-1 text-[11px] uppercase tracking-[0.24em] text-slate-500">
-                © 2024 Aether Medical Imaging. Clinical Grade Precision.
+                © 2026 Medical Imaging.
               </span>
             </div>
             <div className="flex flex-wrap justify-center gap-6">
-              <a className="text-[11px] uppercase tracking-[0.24em] text-slate-400 hover:text-sky-600">
-                HIPAA Compliance
+              <a className="text-[16px] uppercase tracking-[0.24em] text-slate-400 hover:text-sky-600">
+                CNN
               </a>
-              <a className="text-[11px] uppercase tracking-[0.24em] text-slate-400 hover:text-sky-600">
-                GDPR Policy
+              <a className="text-[16px] uppercase tracking-[0.24em] text-slate-400 hover:text-sky-600">
+                Grad-CAM
               </a>
-              <a className="text-[11px] uppercase tracking-[0.24em] text-slate-400 hover:text-sky-600">
-                Security Architecture
+              <a className="text-[16px] uppercase tracking-[0.24em] text-slate-400 hover:text-sky-600">
+                RAG
               </a>
             </div>
           </div>

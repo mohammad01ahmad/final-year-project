@@ -5,44 +5,54 @@ import re
 import numpy as np
 
 
-def extract_tb_location_from_heatmap(heatmap: np.ndarray) -> str:
+def extract_chest_location_from_heatmap(heatmap: np.ndarray) -> str:
+    """
+    Maps chest heatmaps to the KB tags: Upper Zone, Mid Zone, Lower Zone, Global.
+    """
     if heatmap is None or heatmap.size == 0:
-        return "diffuse bilateral lung regions"
+        return "Global"
 
-    working = np.nan_to_num(heatmap.astype(np.float32), nan=0.0, posinf=0.0, neginf=0.0)
+    working = np.nan_to_num(heatmap.astype(np.float32), nan=0.0)
     max_val = np.max(working)
     if max_val <= 0:
-        return "diffuse bilateral lung regions"
+        return "Global"
 
     working = working / (max_val + 1e-8)
-    working[working < 0.2] = 0
-
     height, width = working.shape
-    mid_x = width // 2
     peak_y, peak_x = np.unravel_index(np.argmax(working), working.shape)
-    left_max = float(np.max(working[:, :mid_x]))
-    right_max = float(np.max(working[:, mid_x:]))
-    is_bilateral = (left_max > 0.25) and (right_max > 0.25)
-
     rel_y = peak_y / height
-    rel_x = peak_x / width
+    _ = peak_x / width
+
+    mid_x = width // 2
+    left_max = np.max(working[:, :mid_x])
+    right_max = np.max(working[:, mid_x:])
+    if left_max > 0.4 and right_max > 0.4:
+        return "Global"
+
     if rel_y < 0.33:
-        y_label = "apical (upper)"
-    elif rel_y > 0.66:
-        y_label = "basilar (lower)"
-    else:
-        y_label = "hilar (central)" if 0.35 < rel_x < 0.65 else "mid-zone"
+        return "Upper Zone"
+    if rel_y > 0.66:
+        return "Lower Zone"
+    return "Mid Zone"
 
-    if is_bilateral:
-        return f"bilateral {y_label} lung regions"
-
-    side = "left" if peak_x < mid_x else "right"
-    return f"{side} {y_label} lung region"
-
+def extract_tb_location_from_heatmap(heatmap: np.ndarray) -> str:
+    return extract_chest_location_from_heatmap(heatmap)
 
 def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip().lower())
 
+def score_chest_reference_location(extracted_location: str, reference_location: str) -> int:
+    extracted = _normalize_text(extracted_location)
+    reference = _normalize_text(reference_location)
+    if not reference:
+        return 0
+    if extracted == reference:
+        return 10
+    if extracted == "global":
+        return 6 if reference == "global" else 2
+    if reference == "global":
+        return 3
+    return 0
 
 def _brain_location_tokens(value: str) -> set[str]:
     normalized = _normalize_text(value)
@@ -89,7 +99,6 @@ def _brain_location_tokens(value: str) -> set[str]:
     if normalized == "n/a":
         tokens.update({"n/a", "normal"})
     return tokens
-
 
 def extract_brain_tumor_location_from_heatmap(heatmap: np.ndarray, prediction: str) -> str:
     if prediction == "no_tumor":
@@ -143,7 +152,6 @@ def extract_brain_tumor_location_from_heatmap(heatmap: np.ndarray, prediction: s
     if prediction == "glioma":
         return "Left Frontal Lobe"
     return "Sellar Region"
-
 
 def score_brain_reference_location(extracted_location: str, reference_location: str, prediction: str) -> int:
     extracted = _brain_location_tokens(extracted_location)

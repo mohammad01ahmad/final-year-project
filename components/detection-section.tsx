@@ -5,6 +5,7 @@ import { DetectionConfig, detections, Probability, DetectionResponse, accentMap 
 import { RiUploadCloud2Fill } from "react-icons/ri";
 import { RxReset } from "react-icons/rx";
 import { MdZoomIn } from "react-icons/md";
+import { FaArrowDown } from "react-icons/fa";
 
 const apiBase =
   process.env.NEXT_PUBLIC_INFERENCE_API_URL?.replace(/\/$/, "") ??
@@ -100,7 +101,9 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
   }
 
   const supportsClinicalExplanation =
-    config.key === "tuberculosis" || config.key === "brain-tumor";
+    config.key === "tuberculosis" || config.key === "brain-tumor" || config.key === "chest-diseases";
+  const supportsLlmExperiment =
+    config.key === "tuberculosis" || config.key === "brain-tumor" || config.key === "chest-diseases";
 
   return (
     <>
@@ -194,9 +197,12 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
             </div>
             {/* <!-- Expert Commentary --> */}
             <div className="md:col-span-2 bg-surface-container-low p-6 rounded-xl flex flex-col">
-              <h4 className="font-bold uppercase tracking-widest text-on-surface-variant mb-4 flex items-center gap-2">
-                Class Probabilities
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold uppercase tracking-widest text-on-surface-variant mb-4">
+                  Class Probabilities
+                </h4>
+                <FaArrowDown className="text-on-surface-variant mb-4 mr-2 text-md" />
+              </div>
               <div className="text-on-surface leading-relaxed text-sm md:text-base space-y-4 font-body custom-scrollbar overflow-y-auto max-h-[200px] pr-2">
                 <div className="flex flex-col gap-3">
                   {sortedProbabilities.map((prob) => (
@@ -226,7 +232,7 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
               <div className="rounded-xl bg-surface-container-low p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <h4 className="font-bold uppercase tracking-widest text-on-surface-variant">
-                    Clinical Explanation
+                    RAG Extraction
                   </h4>
                   {response.ragSummary ? (
                     <div className="text-right text-xs text-on-surface-variant">
@@ -270,11 +276,11 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
                 </div>
               </div>
 
-              {supportsClinicalExplanation ? (
+              {supportsLlmExperiment ? (
                 <div className="rounded-xl bg-surface-container-low p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
                   <div className="mb-4 flex items-center justify-between gap-4">
                     <h4 className="font-bold uppercase tracking-widest text-on-surface-variant">
-                      LLM API Experiment
+                      FINAL DIAGNOSIS
                     </h4>
                     {response.llmApiSummary ? (
                       <div className="text-right text-xs text-on-surface-variant">

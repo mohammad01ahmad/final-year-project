@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .kb import get_collection
-from .location import score_brain_reference_location
+from .location import score_brain_reference_location, score_chest_reference_location
 
 
 @dataclass(frozen=True)
@@ -16,7 +16,6 @@ class RetrievedReport:
     location: str
     document: str
     distance: float | None
-
 
 def _build_query(
     disease_type: str,
@@ -37,6 +36,11 @@ def _build_query(
                 "normal chest x-ray no radiographic evidence of active tuberculosis clear lungs "
                 "no active cardiopulmonary disease"
             )
+    elif disease_type.casefold() == "chest_diseases":
+        diagnostic_hint = (
+            "chest x-ray pattern classification for covid-19, non_covid pneumonia, or normal, "
+            "using upper, mid, lower, or global lung zone localization."
+        )
     else:
         diagnostic_hint = (
             "brain MRI lesion location, tumor morphology, mass effect, edema, "
@@ -49,7 +53,6 @@ def _build_query(
         f"Grad-CAM location {location}. "
         f"{diagnostic_hint}"
     )
-
 
 def _format_context(matches: list[RetrievedReport]) -> str:
     return "\n\n".join(
@@ -65,7 +68,6 @@ def _format_context(matches: list[RetrievedReport]) -> str:
             for index, match in enumerate(matches)
         ]
     )
-
 
 def retrieve_rag_context(
     disease_key: str,
@@ -128,13 +130,20 @@ def retrieve_rag_context(
                 match.distance if match.distance is not None else 9999.0,
             ),
         )
+    elif disease_key in {"tuberculosis", "chest-diseases"}:
+        matches = sorted(
+            matches,
+            key=lambda match: (
+                -score_chest_reference_location(location, match.location),
+                match.distance if match.distance is not None else 9999.0,
+            ),
+        )
 
     matches = matches[:top_k]
     if not matches:
         return "No reference reports found for this prediction.", []
 
     return _format_context(matches), matches
-
 
 def retrieve_tb_context(
     disease_type: str,
@@ -152,7 +161,6 @@ def retrieve_tb_context(
         top_k=top_k,
     )
 
-
 def retrieve_brain_tumor_context(
     disease_type: str,
     prediction: str,
@@ -162,6 +170,22 @@ def retrieve_brain_tumor_context(
 ) -> tuple[str, list[RetrievedReport]]:
     return retrieve_rag_context(
         disease_key="brain-tumor",
+        disease_type=disease_type,
+        prediction=prediction,
+        confidence_percent=confidence_percent,
+        location=location,
+        top_k=top_k,
+    )
+
+def retrieve_chest_diseases_context(
+    disease_type: str,
+    prediction: str,
+    confidence_percent: float,
+    location: str,
+    top_k: int = 4,
+) -> tuple[str, list[RetrievedReport]]:
+    return retrieve_rag_context(
+        disease_key="chest-diseases",
         disease_type=disease_type,
         prediction=prediction,
         confidence_percent=confidence_percent,

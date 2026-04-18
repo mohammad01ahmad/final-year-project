@@ -23,6 +23,12 @@ def generate_clinical_explanation(
             "If the prediction is Tuberculosis, identify specific features like opacities or cavities "
             "mentioned in the references that match the AI focus."
         )
+    elif disease_type.casefold() == "chest_diseases":
+        system_prompt = "You are a Senior Thoracic Radiologist. You are explaining why an AI model flagged a Chest X-ray."
+        contrast_line = (
+            "Correlate the predicted class with zone-specific thoracic findings such as peripheral or diffuse "
+            "opacities, consolidation, and whether the pattern is more consistent with covid-19, non_covid disease, or normal."
+        )
     else:
         system_prompt = (
             "You are a Senior Neuroradiologist providing a grounded diagnostic rationale. "
@@ -114,6 +120,23 @@ def generate_brain_tumor_explanation(
 ) -> str:
     return generate_clinical_explanation(
         disease_type="Brain_tumor",
+        prediction=prediction,
+        confidence_percent=confidence_percent,
+        location=location,
+        context=context,
+        model=model,
+    )
+
+
+def generate_chest_diseases_explanation(
+    prediction: str,
+    confidence_percent: float,
+    location: str,
+    context: str,
+    model: str = DEFAULT_MODEL,
+) -> str:
+    return generate_clinical_explanation(
+        disease_type="Chest_diseases",
         prediction=prediction,
         confidence_percent=confidence_percent,
         location=location,

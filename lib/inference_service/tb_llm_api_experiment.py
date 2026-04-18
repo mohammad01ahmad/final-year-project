@@ -11,10 +11,12 @@ from urllib.request import Request, urlopen
 PROJECT_ROOT = Path("/Users/Ahmad/UNI-work/year3/FYP/Project")
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3"
+ALL_DISEASES_CSV_PATH = PROJECT_ROOT / "fyp/lib/inference_service/RAG/all_diseases.csv"
 
 CSV_PATHS = {
-    "tuberculosis": PROJECT_ROOT / "fyp/lib/inference_service/RAG/tb_normal.csv",
-    "brain-tumor": PROJECT_ROOT / "fyp/lib/inference_service/RAG/brain_tumor.csv",
+    "tuberculosis": ALL_DISEASES_CSV_PATH,
+    "brain-tumor": ALL_DISEASES_CSV_PATH,
+    "chest-diseases": ALL_DISEASES_CSV_PATH,
 }
 
 
@@ -80,6 +82,13 @@ def _keywords_for_prediction(disease_key: str, prediction: str) -> list[str]:
             "negative",
             "normal chest",
         ]
+    if disease_key == "chest-diseases":
+        lookup = {
+            "covid-19": ["covid-19", "bilateral", "global", "ground-glass", "peripheral", "opacity"],
+            "non_covid": ["non_covid", "pneumonia", "consolidation", "zone", "opacity", "infective"],
+            "normal": ["normal", "clear lungs", "no acute", "no focal", "negative"],
+        }
+        return lookup.get(prediction.lower(), [prediction.lower()])
 
     lookup = {
         "glioma": ["glioma", "glial", "infiltrative", "edema", "ring", "mass effect"],
@@ -93,11 +102,19 @@ def _keywords_for_prediction(disease_key: str, prediction: str) -> list[str]:
 def _keywords_for_location(disease_key: str, location: str) -> list[str]:
     lowered = location.lower()
     keywords: list[str] = [lowered]
-    if disease_key == "tuberculosis":
+    if disease_key in {"tuberculosis", "chest-diseases"}:
         if "upper" in lowered:
             keywords.extend(["upper lobe", "apex", "apical"])
         if "lower" in lowered:
             keywords.extend(["lower lobe", "basilar", "base"])
+        if "upper zone" in lowered:
+            keywords.append("upper zone")
+        if "mid zone" in lowered:
+            keywords.append("mid zone")
+        if "lower zone" in lowered:
+            keywords.append("lower zone")
+        if "global" in lowered:
+            keywords.append("global")
         if "left" in lowered:
             keywords.append("left")
         if "right" in lowered:
@@ -219,6 +236,11 @@ def generate_llm_api_explanation(
         system_prompt = (
             "You are a professional Neuroradiologist who explains the reasoning behind a brain MRI finding. "
             "The AI classification is for glioma, meningioma, no_tumor, or pituitary, and it is supplemented with Grad-CAM heatmaps."
+        )
+    elif disease_key == "chest-diseases":
+        system_prompt = (
+            "You are a professional Thoracic Radiologist who explains the reasoning behind a chest X-ray finding. "
+            "The AI classification is for covid-19, non_covid, or normal, and it is supplemented with Grad-CAM heatmaps."
         )
     else:
         system_prompt = (
