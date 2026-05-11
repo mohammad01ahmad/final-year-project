@@ -1,14 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { ReactNode, useState } from "react";
 import { DetectionConfig, detections } from "@/lib/types/types";
 import { DetectionSection } from "./detection-section";
+import { FaBrain } from "react-icons/fa";
+import { GiLungs } from "react-icons/gi";
+import { MdOutlineWaves } from "react-icons/md";
+import { TbBrain } from "react-icons/tb";
 
 function ShellIcon({
-  children,
+  icon,
   active = false,
 }: {
-  children: string;
+  icon: ReactNode;
   active?: boolean;
 }) {
   return (
@@ -20,9 +24,24 @@ function ShellIcon({
           : "bg-slate-100 text-slate-500",
       ].join(" ")}
     >
-      {children}
+      {icon}
     </span>
   );
+}
+
+function getDetectionIcon(key: DetectionConfig["key"]) {
+  switch (key) {
+    case "alzheimers":
+      return <FaBrain className="text-lg" />;
+    case "brain-tumor":
+      return <TbBrain className="text-xl" />;
+    case "chest-diseases":
+      return <GiLungs className="text-lg" />;
+    case "tuberculosis":
+      return <MdOutlineWaves className="text-xl" />;
+    default:
+      return null;
+  }
 }
 
 export function DetectionDashboard() {
@@ -63,11 +82,11 @@ export function DetectionDashboard() {
       {/* Side bar */}
       <aside className="fixed left-0 top-0 hidden h-screen w-72 overflow-y-auto border-r border-slate-200/70 bg-slate-50/90 p-4 backdrop-blur md:flex md:flex-col">
         <div className="mb-8 px-3">
-          <h2 className="font-headline text-lg font-extrabold text-sky-900">
+          <h2 className="font-headline text-lg font-extrabold text-sky-900 uppercase">
             Final Year Project
           </h2>
           <p className="mt-1 text-[11px] uppercase tracking-[0.24em] text-slate-500">
-            Disease detection and Explanation
+            Disease detection and Explaination
           </p>
         </div>
 
@@ -85,9 +104,7 @@ export function DetectionDashboard() {
                     : "text-slate-500 hover:bg-white/60"
                 ].join(" ")}
               >
-                <ShellIcon active={isActive}>
-                  {d.title.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)}
-                </ShellIcon>
+                <ShellIcon active={isActive} icon={getDetectionIcon(d.key)} />
                 <div className="text-left">
                   <p className="text-sm font-semibold">{d.title}</p>
                   {isActive && <p className="text-[10px] text-slate-500">Active diagnostics workspace</p>}
@@ -98,14 +115,9 @@ export function DetectionDashboard() {
         </div>
 
         <div className="border-t border-slate-200 pt-4">
-          <a className="flex items-center gap-3 rounded-2xl p-3 text-slate-500 hover:bg-white">
-            <ShellIcon>⚙</ShellIcon>
-            <span className="text-sm font-medium">Settings</span>
-          </a>
-          <a className="flex items-center gap-3 rounded-2xl p-3 text-slate-500 hover:bg-white">
-            <ShellIcon>?</ShellIcon>
-            <span className="text-sm font-medium">Support</span>
-          </a>
+          <div>
+            <img src="/uwl_logo.png" alt="Logo" />
+          </div>
         </div>
       </aside>
 
@@ -118,17 +130,14 @@ export function DetectionDashboard() {
                 AM
               </span>
               <nav className="hidden items-center gap-6 lg:flex">
-                <a className="font-headline text-sm font-medium tracking-tight text-slate-500 hover:text-sky-800">
-                  Analysis History
-                </a>
                 <a className="border-b-2 border-sky-900 pb-1 font-headline text-sm font-bold tracking-tight text-sky-900">
-                  Upload New
+                  Disease Detection
                 </a>
               </nav>
             </div>
             <div className="flex items-center gap-4">
               <button className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-sky-900 hover:bg-slate-200">
-                AC
+                FYP
               </button>
             </div>
           </div>

@@ -10,24 +10,30 @@ from typing import Any
 RAG_DIR = Path(__file__).resolve().parent
 CHROMA_PATH = RAG_DIR / "chroma_db"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-ALL_DISEASES_CSV_PATH = RAG_DIR / "all_diseases.csv"
+ALL_DISEASES_CSV_PATH = RAG_DIR / "all_diseases_fixed.csv"
 
 KB_CONFIG = {
+    "alzheimers": {
+        "csv_path": ALL_DISEASES_CSV_PATH,
+        "collection_name": "alzheimers_reports_all_diseases_fixed_v1",
+        "label_prefix": "alz-report",
+        "disease_type": "Alzheimer's",
+    },
     "tuberculosis": {
         "csv_path": ALL_DISEASES_CSV_PATH,
-        "collection_name": "tuberculosis_reports_all_diseases_v1",
+        "collection_name": "tuberculosis_reports_all_diseases_fixed_v1",
         "label_prefix": "tb-report",
         "disease_type": "Tuberculosis",
     },
     "brain-tumor": {
         "csv_path": ALL_DISEASES_CSV_PATH,
-        "collection_name": "brain_tumor_reports_all_diseases_v1",
+        "collection_name": "brain_tumor_reports_all_diseases_fixed_v1",
         "label_prefix": "brain-report",
         "disease_type": "Brain_tumor",
     },
     "chest-diseases": {
         "csv_path": ALL_DISEASES_CSV_PATH,
-        "collection_name": "chest_diseases_reports_all_diseases_v1",
+        "collection_name": "chest_diseases_reports_all_diseases_fixed_v1",
         "label_prefix": "chest-report",
         "disease_type": "Chest_diseases",
     },
@@ -171,6 +177,10 @@ def get_collection(disease_key: str) -> Any:
 
 def ensure_tb_vector_store() -> int:
     return ensure_vector_store("tuberculosis")
+
+
+def ensure_alzheimers_vector_store() -> int:
+    return ensure_vector_store("alzheimers")
 
 
 def ensure_brain_tumor_vector_store() -> int:

@@ -29,6 +29,12 @@ def generate_clinical_explanation(
             "Correlate the predicted class with zone-specific thoracic findings such as peripheral or diffuse "
             "opacities, consolidation, and whether the pattern is more consistent with covid-19, non_covid disease, or normal."
         )
+    elif disease_type.casefold() == "alzheimer's":
+        system_prompt = "You are a Senior Neuroradiologist. You are explaining why an AI model flagged a brain MRI for dementia staging."
+        contrast_line = (
+            "Correlate the predicted stage with MRI features such as frontal or medial temporal atrophy, "
+            "temporal/parietal involvement, ventricular prominence, or preserved global structure for non-demented cases."
+        )
     else:
         system_prompt = (
             "You are a Senior Neuroradiologist providing a grounded diagnostic rationale. "
@@ -137,6 +143,23 @@ def generate_chest_diseases_explanation(
 ) -> str:
     return generate_clinical_explanation(
         disease_type="Chest_diseases",
+        prediction=prediction,
+        confidence_percent=confidence_percent,
+        location=location,
+        context=context,
+        model=model,
+    )
+
+
+def generate_alzheimers_explanation(
+    prediction: str,
+    confidence_percent: float,
+    location: str,
+    context: str,
+    model: str = DEFAULT_MODEL,
+) -> str:
+    return generate_clinical_explanation(
+        disease_type="Alzheimer's",
         prediction=prediction,
         confidence_percent=confidence_percent,
         location=location,

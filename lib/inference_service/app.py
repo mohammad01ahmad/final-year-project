@@ -21,15 +21,19 @@ from fastapi.responses import JSONResponse
 
 # RAG imports
 from RAG import (
+    ensure_alzheimers_vector_store,
     ensure_brain_tumor_vector_store,
     ensure_chest_diseases_vector_store,
     ensure_tb_vector_store,
+    extract_alzheimers_location_from_heatmap,
     extract_brain_tumor_location_from_heatmap,
     extract_chest_location_from_heatmap,
     extract_tb_location_from_heatmap,
+    generate_alzheimers_explanation,
     generate_brain_tumor_explanation,
     generate_chest_diseases_explanation,
     generate_tb_explanation,
+    retrieve_alzheimers_context,
     retrieve_brain_tumor_context,
     retrieve_chest_diseases_context,
     retrieve_tb_context,
@@ -108,13 +112,15 @@ def get_model(key: str) -> LoadedModel:
 
 
 def normalize_kb_class_label(model_key: str, prediction_label: str) -> str:
+    if model_key == "alzheimers":
+        return prediction_label.lower()
     if model_key == "tuberculosis":
         return prediction_label.lower()
     if model_key == "chest-diseases":
         mapping = {
             "COVID-19": "covid-19",
             "Normal": "normal",
-            "Non-COVID": "non_covid",
+            "Non-COVID": "non-covid",
         }
         return mapping.get(prediction_label, prediction_label.lower())
     return prediction_label
@@ -178,6 +184,58 @@ async def run_inference_logic(key: str, file: UploadFile):
         # -------------------------------------
         # 5.1 RAG & LLM API
         # -------------------------------------
+        if loaded.config.key == "alzheimers":
+            disease_type = "Alzheimer's"
+            location = extract_alzheimers_location_from_heatmap(heatmap, prediction_label)
+            retrieved_count = 0
+            try:
+                ensure_alzheimers_vector_store()
+                context, matches = retrieve_alzheimers_context(
+                    disease_type=disease_type,
+                    prediction=kb_prediction_label,
+                    confidence_percent=confidence_percent,
+                    location=location,
+                )
+                retrieved_count = len(matches)
+                rag_references = context.strip() or None
+                if context.strip():
+                    explanation = generate_alzheimers_explanation(
+                        prediction=prediction_label,
+                        confidence_percent=confidence_percent,
+                        location=location,
+                        context=context,
+                    )
+            except Exception as rag_error:
+                print(f"Alzheimer's RAG warning: {rag_error}")
+
+            rag_summary = {
+                "location": location,
+                "retrievedCount": retrieved_count,
+            }
+
+            try:
+                simple_reports = select_reference_reports(
+                    disease_key="alzheimers",
+                    disease_type=disease_type,
+                    prediction=kb_prediction_label,
+                    location=location,
+                )
+                simple_context = build_reference_context(simple_reports)
+                if simple_context.strip():
+                    llm_api_explanation = generate_llm_api_explanation(
+                        disease_key="alzheimers",
+                        prediction=prediction_label,
+                        confidence_percent=confidence_percent,
+                        location=location,
+                        context=simple_context,
+                    )
+                llm_api_summary = {
+                    "location": location,
+                    "selectedCount": len(simple_reports),
+                }
+            except Exception as llm_error:
+                print(f"Alzheimer's LLM API warning: {llm_error}")
+
         if loaded.config.key == "tuberculosis":
             disease_type = "Tuberculosis"
             location = extract_tb_location_from_heatmap(heatmap)

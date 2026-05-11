@@ -11,9 +11,10 @@ from urllib.request import Request, urlopen
 PROJECT_ROOT = Path("/Users/Ahmad/UNI-work/year3/FYP/Project")
 OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3"
-ALL_DISEASES_CSV_PATH = PROJECT_ROOT / "fyp/lib/inference_service/RAG/all_diseases.csv"
+ALL_DISEASES_CSV_PATH = PROJECT_ROOT / "fyp/lib/inference_service/RAG/all_diseases_fixed.csv"
 
 CSV_PATHS = {
+    "alzheimers": ALL_DISEASES_CSV_PATH,
     "tuberculosis": ALL_DISEASES_CSV_PATH,
     "brain-tumor": ALL_DISEASES_CSV_PATH,
     "chest-diseases": ALL_DISEASES_CSV_PATH,
@@ -86,7 +87,16 @@ def _keywords_for_prediction(disease_key: str, prediction: str) -> list[str]:
         lookup = {
             "covid-19": ["covid-19", "bilateral", "global", "ground-glass", "peripheral", "opacity"],
             "non_covid": ["non_covid", "pneumonia", "consolidation", "zone", "opacity", "infective"],
+            "non-covid": ["non-covid", "pneumonia", "consolidation", "zone", "opacity", "infective"],
             "normal": ["normal", "clear lungs", "no acute", "no focal", "negative"],
+        }
+        return lookup.get(prediction.lower(), [prediction.lower()])
+    if disease_key == "alzheimers":
+        lookup = {
+            "mild demented": ["mild", "demented", "frontal", "temporal", "atrophy"],
+            "moderate demented": ["moderate", "demented", "global", "temporal", "parietal", "atrophy"],
+            "non demented": ["normal", "preserved", "no atrophy", "non demented", "global"],
+            "very mild demented": ["very mild", "demented", "medial temporal", "subtle", "atrophy"],
         }
         return lookup.get(prediction.lower(), [prediction.lower()])
 
@@ -123,6 +133,15 @@ def _keywords_for_location(disease_key: str, location: str) -> list[str]:
             keywords.append("bilateral")
         if "central" in lowered or "mid" in lowered:
             keywords.extend(["mid", "central"])
+        return keywords
+    if disease_key == "alzheimers":
+        for token in ["frontal", "temporal", "parietal", "medial", "global"]:
+            if token in lowered:
+                keywords.append(token)
+        if "temporal/parietal" in lowered:
+            keywords.extend(["temporal", "parietal"])
+        if "medial temporal" in lowered:
+            keywords.extend(["medial temporal", "temporal"])
         return keywords
 
     for token in [
@@ -236,6 +255,11 @@ def generate_llm_api_explanation(
         system_prompt = (
             "You are a professional Neuroradiologist who explains the reasoning behind a brain MRI finding. "
             "The AI classification is for glioma, meningioma, no_tumor, or pituitary, and it is supplemented with Grad-CAM heatmaps."
+        )
+    elif disease_key == "alzheimers":
+        system_prompt = (
+            "You are a professional Neuroradiologist who explains the reasoning behind a brain MRI dementia-stage finding. "
+            "The AI classification is for mild demented, moderate demented, non demented, or very mild demented, and it is supplemented with Grad-CAM heatmaps."
         )
     elif disease_key == "chest-diseases":
         system_prompt = (

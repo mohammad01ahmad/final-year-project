@@ -54,6 +54,61 @@ def score_chest_reference_location(extracted_location: str, reference_location: 
         return 3
     return 0
 
+
+def _alzheimers_location_tokens(value: str) -> set[str]:
+    normalized = _normalize_text(value)
+    tokens = set(re.split(r"[^a-z0-9/]+", normalized))
+    tokens.discard("")
+    if "medial temporal" in normalized:
+        tokens.update({"medial", "temporal"})
+    if "temporal/parietal" in normalized:
+        tokens.update({"temporal", "parietal"})
+    if normalized == "global":
+        tokens.add("global")
+    return tokens
+
+
+def extract_alzheimers_location_from_heatmap(heatmap: np.ndarray, prediction: str) -> str:
+    if prediction.lower() == "non demented":
+        return "Global"
+
+    if heatmap is None or heatmap.size == 0:
+        return "Medial Temporal"
+
+    working = np.nan_to_num(heatmap.astype(np.float32), nan=0.0, posinf=0.0, neginf=0.0)
+    max_val = float(np.max(working))
+    if max_val <= 0:
+        return "Medial Temporal"
+
+    normalized = working / (max_val + 1e-8)
+    peak_y, peak_x = np.unravel_index(np.argmax(normalized), normalized.shape)
+    height, width = normalized.shape
+    rel_x = peak_x / max(width - 1, 1)
+    rel_y = peak_y / max(height - 1, 1)
+
+    if 0.3 <= rel_x <= 0.7 and rel_y >= 0.38:
+        return "Medial Temporal"
+    if rel_y < 0.3:
+        return "Frontal Lobe"
+    if rel_x < 0.3 or rel_x > 0.7:
+        return "Temporal/Parietal"
+    if prediction.lower() == "moderate demented":
+        return "Temporal/Parietal"
+    return "Medial Temporal"
+
+
+def score_alzheimers_reference_location(extracted_location: str, reference_location: str) -> int:
+    extracted = _alzheimers_location_tokens(extracted_location)
+    reference = _alzheimers_location_tokens(reference_location)
+    if not reference:
+        return 0
+    score = len(extracted & reference) * 3
+    if _normalize_text(extracted_location) == _normalize_text(reference_location):
+        score += 8
+    if "global" in extracted and "global" in reference:
+        score += 4
+    return score
+
 def _brain_location_tokens(value: str) -> set[str]:
     normalized = _normalize_text(value)
     synonyms = {

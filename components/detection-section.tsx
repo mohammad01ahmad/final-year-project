@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { DetectionConfig, detections, Probability, DetectionResponse, accentMap } from "@/lib/types/types";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { DetectionConfig, DetectionResponse } from "@/lib/types/types";
 import { RiUploadCloud2Fill } from "react-icons/ri";
 import { RxReset } from "react-icons/rx";
 import { MdZoomIn } from "react-icons/md";
 import { FaArrowDown } from "react-icons/fa";
+import { IoIosMedical } from "react-icons/io";
+import { FiDownload } from "react-icons/fi";
 
 const apiBase =
   process.env.NEXT_PUBLIC_INFERENCE_API_URL?.replace(/\/$/, "") ??
@@ -22,6 +26,7 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
   const [response, setResponse] = useState<DetectionResponse | null>(null);
   const [referencesExpanded, setReferencesExpanded] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const reportRef = useRef<HTMLDivElement | null>(null);
 
 
   // Preview the uploaded image
@@ -101,9 +106,73 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
   }
 
   const supportsClinicalExplanation =
-    config.key === "tuberculosis" || config.key === "brain-tumor" || config.key === "chest-diseases";
+    config.key === "alzheimers" || config.key === "tuberculosis" || config.key === "brain-tumor" || config.key === "chest-diseases";
   const supportsLlmExperiment =
-    config.key === "tuberculosis" || config.key === "brain-tumor" || config.key === "chest-diseases";
+    config.key === "alzheimers" || config.key === "tuberculosis" || config.key === "brain-tumor" || config.key === "chest-diseases";
+
+  async function handleDownloadReport() {
+    if (!response || !reportRef.current) return;
+
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        // Force a plain white background so oklch background vars never reach the parser
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false,
+        // Skip any element that could still carry a live theme variable
+        ignoreElements: (el) =>
+          el.classList.contains("ignore-canvas"),
+        onclone: (_doc, element) => {
+          // Make the hidden div visible to html2canvas during capture
+          element.style.position = "relative";
+          element.style.left = "0";
+          element.style.opacity = "1";
+        },
+      });
+
+      const imageData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      // FIX: correct multi-page offset math
+      let heightLeft = imgHeight;
+      let pageNumber = 0;
+
+      pdf.addImage(imageData, "PNG", 0, 0, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        pageNumber += 1;
+        pdf.addPage();
+        // Shift the image up by one full page each time
+        pdf.addImage(imageData, "PNG", 0, -(pageHeight * pageNumber), imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const blob = pdf.output("blob");
+      const blobUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${config.key}-diagnosis-report.pdf`;
+      link.click();
+
+      // FIX: always revoke, don't rely on beforeunload
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+    } catch (err) {
+      console.error("Report generation failed:", err);
+    }
+  }
 
   return (
     <>
@@ -137,7 +206,7 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
       {isPending ? (
         <div className="flex justify-center items-center py-20 flex-col gap-4">
           <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-primary font-bold animate-pulse">Analyzing image via Aether Medical Inference API...</p>
+          <p className="text-primary font-bold animate-pulse">Analyzing image via Medical Inference API...</p>
         </div>
       ) : response ? (
         <>
@@ -175,12 +244,15 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
           {/* <!-- Diagnosis & Commentary Bento Grid --> */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             {/* <!-- Findings Panel --> */}
-            <div className="md:col-span-1 bg-error-container/40 p-6 rounded-xl border-l-4 border-error flex flex-col justify-between">
+            <div className="md:col-span-1 bg-error-container/40 bg-red-100 p-6 rounded-xl border-l-4 border-error flex flex-col justify-between">
               <div>
-                <h4 className="text-lg font-bold uppercase tracking-widest text-on-error-container mb-4">Predicted Class</h4>
-                <div className="flex items-start gap-3">
+                <h4 className="text-lg font-bold uppercase text-on-error-container mb-4 text-error">Predicted Class</h4>
+                <div className="flex items-center gap-3">
+                  <div className="bg-error/10 p-1.5 rounded-full">
+                    <IoIosMedical className="text-4xl text-error" />
+                  </div>
                   <div>
-                    <span className="block font-headline text-2xl font-extrabold text-on-error-container leading-tight">Diagnosis</span>
+                    <span className="block font-headline text-2xl font-extrabold text-red-800 leading-tight">Diagnosis</span>
                     <span className="text-error font-bold text-lg">({response.prediction})</span>
                   </div>
                 </div>
@@ -203,7 +275,7 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
                 </h4>
                 <FaArrowDown className="text-on-surface-variant mb-4 mr-2 text-md" />
               </div>
-              <div className="text-on-surface leading-relaxed text-sm md:text-base space-y-4 font-body custom-scrollbar overflow-y-auto max-h-[200px] pr-2">
+              <div className="text-on-surface leading-relaxed text-sm md:text-base space-y-4 font-body pr-2">
                 <div className="flex flex-col gap-3">
                   {sortedProbabilities.map((prob) => (
                     <div key={prob.label} className="w-full">
@@ -222,14 +294,14 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
                     Grad-CAM location: <span className="font-bold underline">{response.ragSummary.location}</span>
                   </p>
                 ) : null}
-                <p className="mt-4 text-md italic text-black">The AI model has highlighted the most salient regions in the generated heatmap overlay. Clinical correlation with the patient's reported symptoms is highly recommended.</p>
+                <p className="text-sm italic text-black">The AI model has highlighted the most salient regions in the generated heatmap overlay. Clinical correlation with the patient's reported symptoms is highly recommended.</p>
               </div>
             </div>
           </div>
 
           {supportsClinicalExplanation ? (
-            <div className="mb-10 grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <div className="rounded-xl bg-surface-container-low p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+            <div className="mb-10 flex flex-col gap-6">
+              <div className="w-full rounded-xl bg-surface-container-low p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <h4 className="font-bold uppercase tracking-widest text-on-surface-variant">
                     RAG Extraction
@@ -240,10 +312,10 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
                     </div>
                   ) : null}
                 </div>
-                <div className="rounded-lg bg-white/80 p-5 text-sm leading-7 text-on-surface">
+                <div className="rounded-lg text-sm leading-7 text-on-surface">
                   {response.explanation ? (
                     <div className="space-y-4">
-                      <p>{response.explanation}</p>
+                      <p className="">{response.explanation}</p>
                       {response.ragReferences ? (
                         <div className="rounded-lg border border-slate-200 bg-slate-50">
                           <button
@@ -277,22 +349,24 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
               </div>
 
               {supportsLlmExperiment ? (
-                <div className="rounded-xl bg-surface-container-low p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+                <div className="w-full rounded-xl bg-[#004A7C] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
                   <div className="mb-4 flex items-center justify-between gap-4">
-                    <h4 className="font-bold uppercase tracking-widest text-on-surface-variant">
+                    <h4 className="pl-2 pt-2 text-2xl font-bold uppercase tracking-widest text-white animate-pulse">
                       FINAL DIAGNOSIS
                     </h4>
-                    {response.llmApiSummary ? (
-                      <div className="text-right text-xs text-on-surface-variant">
-                        <p>Selected reports: {response.llmApiSummary.selectedCount}</p>
-                      </div>
-                    ) : null}
+                    <div className="flex items-center gap-4">
+                      {response.llmApiSummary ? (
+                        <div className="text-right text-xs text-sky-100">
+                          <p>Selected reports: {response.llmApiSummary.selectedCount}</p>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="rounded-lg bg-white/80 p-5 text-sm leading-7 text-on-surface">
+                  <div className="rounded-lg pt-2 pb-2 pl-2 text-lg leading-7 text-[#D0E4FF]">
                     {response.llmApiExplanation ? (
                       <p>{response.llmApiExplanation}</p>
                     ) : (
-                      <p className="italic text-on-surface-variant">
+                      <p className="italic text-sky-100">
                         No LLM API experiment output is available for this result right now.
                       </p>
                     )}
@@ -301,6 +375,130 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
               ) : null}
             </div>
           ) : null}
+
+          <div className="pointer-events-none fixed left-[-10000px] top-0 z-[-1] opacity-0">
+            <div
+              ref={reportRef}
+              style={{ fontFamily: "sans-serif" }}
+              className="w-[794px] bg-white px-10 py-10"
+            >
+              {/* Header */}
+              <div className="mb-8 border-b border-[#e2e8f0] pb-6">
+                <p className="text-3xl font-extrabold uppercase tracking-[0.18em] text-[#004A7C]">
+                  Medical Diagnosis
+                </p>
+                <p className="mt-3 text-xl font-semibold text-[#374151]">
+                  {config.title.replace(" Detection", "")}
+                </p>
+              </div>
+
+              {/* Images */}
+              <div className="mb-8 grid grid-cols-2 gap-6">
+                <div className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-[#f8fafc]">
+                  <div className="border-b border-[#e2e8f0] px-4 py-3 text-sm font-bold uppercase tracking-[0.12em] text-[#475569]">
+                    Original Radiograph
+                  </div>
+                  <div className="p-4">
+                    {previewUrl ? (
+                      <img
+                        className="h-[250px] w-full rounded-xl object-cover"
+                        src={previewUrl}
+                        alt="Original uploaded image"
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <div className="flex h-[250px] items-center justify-center rounded-xl bg-[#e2e8f0] text-sm text-[#64748b]">
+                        No image available
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-[#e2e8f0] bg-[#f8fafc]">
+                  <div className="border-b border-[#e2e8f0] px-4 py-3 text-sm font-bold uppercase tracking-[0.12em] text-[#475569]">
+                    Grad-CAM Heatmap
+                  </div>
+                  <div className="p-4">
+                    <img
+                      className="h-[250px] w-full rounded-xl object-cover"
+                      src={response.gradcamImage}
+                      alt="Grad-CAM heatmap"
+                      crossOrigin="anonymous"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Prediction */}
+              <div className="mb-6 rounded-2xl border border-[#fecaca] bg-[#fef2f2] p-6">
+                <div className="mb-3 text-sm font-bold uppercase tracking-[0.12em] text-[#dc2626]">
+                  Predicted Class
+                </div>
+                <div className="text-3xl font-extrabold text-[#991b1b]">
+                  {response.prediction}
+                </div>
+                <div className="mt-3 text-sm font-semibold text-[#7f1d1d]">
+                  Confidence Score:{" "}
+                  {sortedProbabilities.length > 0
+                    ? formatPercent(sortedProbabilities[0].score)
+                    : "0%"}
+                </div>
+              </div>
+
+              {/* Probabilities */}
+              <div className="mb-6 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-6">
+                <div className="mb-4 text-sm font-bold uppercase tracking-[0.12em] text-[#475569]">
+                  Class Probabilities
+                </div>
+                <div className="space-y-3">
+                  {sortedProbabilities.map((prob) => (
+                    <div key={`report-${prob.label}`}>
+                      <div className="mb-1 flex items-center justify-between text-sm font-semibold text-[#1e293b]">
+                        <span>{prob.label}</span>
+                        <span>{formatPercent(prob.score)}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[#e2e8f0]">
+                        <div
+                          className="h-full bg-[#004A7C]"
+                          style={{ width: `${prob.score * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {response.ragSummary?.location ? (
+                  <p className="mt-4 text-sm font-semibold text-[#374151]">
+                    Grad-CAM location:{" "}
+                    <span className="font-bold underline">
+                      {response.ragSummary.location}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+
+              {/* RAG */}
+              <div className="mb-6 rounded-2xl border border-[#e2e8f0] bg-white p-6">
+                <div className="mb-4 text-sm font-bold uppercase tracking-[0.12em] text-[#475569]">
+                  RAG Extraction
+                </div>
+                <p className="whitespace-pre-wrap text-[15px] leading-7 text-[#1e293b]">
+                  {response.explanation ??
+                    "No clinical explanation is available for this result right now."}
+                </p>
+              </div>
+
+              {/* Final diagnosis */}
+              <div className="rounded-2xl bg-[#004A7C] p-6 text-[#D0E4FF]">
+                <div className="mb-4 text-sm font-bold uppercase tracking-[0.12em] text-white">
+                  Final Diagnosis
+                </div>
+                <p className="whitespace-pre-wrap text-[15px] leading-7">
+                  {response.llmApiExplanation ??
+                    "No final diagnosis summary is available for this result right now."}
+                </p>
+              </div>
+            </div>
+          </div>
         </>
       ) : (
         <>
@@ -325,6 +523,19 @@ export function DetectionSection({ config }: { config: DetectionConfig }) {
         </>
       )}
 
+      {/* Place this anywhere in the response view, e.g. at the top of the results section */}
+      {response && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleDownloadReport}
+            className="inline-flex items-center gap-2 rounded-full bg-[#004A7C] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#003a61] transition-colors"
+          >
+            <FiDownload className="text-base" />
+            Download Report
+          </button>
+        </div>
+      )}
     </>
   );
 }
