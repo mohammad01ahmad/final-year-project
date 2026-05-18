@@ -1,0 +1,16 @@
+# Data handling and numerical operations
+numpy>=1.23.5
+pandas>=1.5.3
+
+# Computer Vision
+opencv-python>=4.7.0
+
+# Visualization
+matplotlib>=3.7.0
+
+# Machine Learning & Deep Learning
+scikit-learn>=1.2.0
+scipy>=1.10.0
+tensorflow>=2.12.0
+keras
+scikit-image
